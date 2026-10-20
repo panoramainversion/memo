@@ -1,0 +1,9 @@
+node_modules/
+.wrangler/
+.dev.vars
+.DS_Store
+
+# 本机私有：管理员密码存档、备份文件
+.admin-password.txt
+backup-*.json
+package-lock.json

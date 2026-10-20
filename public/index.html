@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<title>碎碎念</title>
+<meta name="description" content="一个人的房间。想到什么写什么。" />
+<link rel="stylesheet" href="/style.css" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="theme-color" content="#f4f1ec" id="themeColor" />
+<link rel="alternate" type="application/rss+xml" title="RSS" href="/feed.xml" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23b84200'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%23f4f1ec'/%3E%3C/svg%3E" />
+</head>
+<body>
+<div class="grain" aria-hidden="true"></div>
+
+<main class="page">
+  <header class="site">
+    <div class="site-row">
+      <div>
+        <h1 class="site-title" id="siteTitle">
+          <span class="skeleton sk-title"></span>
+        </h1>
+        <p class="site-desc" id="siteDesc"></p>
+      </div>
+      <button class="icon-btn" id="themeBtn" aria-label="切换主题" title="切换主题">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4.2" />
+          <path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="filter" id="filter" hidden>
+    <span class="filter-text" id="filterText"></span>
+    <button class="filter-clear" id="filterClear">清除</button>
+  </div>
+
+  <div class="stream" id="stream"></div>
+
+  <div class="state" id="empty" hidden>
+    <p class="state-main">这里还空着</p>
+    <p class="state-sub">第一句话往往最难写。</p>
+  </div>
+
+  <div class="state" id="loading" hidden>
+    <span class="dots"><i></i><i></i><i></i></span>
+  </div>
+
+  <div class="state" id="error" hidden>
+    <p class="state-main">没能加载出来</p>
+    <p class="state-sub" id="errorMsg"></p>
+    <button class="link-btn" id="retryBtn">重试</button>
+  </div>
+
+  <footer class="foot">
+    <a href="/feed.xml" class="foot-link">RSS</a>
+    <span class="foot-dot">·</span>
+    <button class="foot-link" id="searchBtn">搜索</button>
+    <input class="foot-input" id="searchInput" placeholder="找点什么…" hidden />
+    <span class="foot-dot">·</span>
+    <button class="foot-link" id="loginBtn">登录</button>
+    <span class="foot-count" id="footCount"></span>
+  </footer>
+</main>
+
+<!-- 发布条 -->
+<div class="dock" id="dock" hidden>
+  <div class="dock-inner">
+    <textarea id="composerInput" rows="1" placeholder="写点什么…" maxlength="5000"></textarea>
+    <div class="dock-actions">
+      <span class="counter" id="counter"></span>
+      <button class="btn-primary" id="publishBtn" disabled>发布</button>
+    </div>
+  </div>
+</div>
+
+<!-- 登录弹层 -->
+<div class="modal" id="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-label="登录">
+    <h2 class="modal-title">只有你能进</h2>
+    <p class="modal-sub">输入管理密码，开始记录。</p>
+    <input type="password" id="pwInput" class="input" placeholder="密码" autocomplete="current-password" />
+    <p class="modal-err" id="pwErr"></p>
+    <div class="modal-actions">
+      <button class="btn-ghost" data-close>取消</button>
+      <button class="btn-primary" id="pwSubmit">进入</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="/app.js" type="module"></script>
+</body>
+</html>

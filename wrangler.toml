@@ -1,0 +1,50 @@
+# Worker 名。想换名字就改这里，但等于新建一个 Worker，
+# 旧 Worker 上的自定义域名要先在 Dashboard 解绑，否则会冲突。
+name = "memo"
+main = "src/index.js"
+compatibility_date = "2024-11-06"
+
+# workers.dev 作为备用入口
+workers_dev = true
+
+# ── 自定义域名（可选，但建议）──────────────────────────────────
+# workers.dev 这类共享域名在部分网络下访问不稳定，长期用的话绑一个
+# 自己的域名最省心。前提：该域名所在的 zone 已托管在同一个 Cloudflare 账号下。
+#
+# 用法：去掉下面三行的注释，把域名换成你自己的，再 wrangler deploy。
+# 证书自动签发，1–2 分钟生效。
+#
+# ⚠ 已经绑好域名的人注意：部署时 Worker 的路由会按这份配置同步，
+#   如果这三行停在被注释的状态，部署会把域名解绑、站点立刻打不开。
+#   所以每次 deploy 前先确认它们是生效的。
+#
+#   [[routes]]
+#   pattern = "memo.你的域名.com"
+#   custom_domain = true
+
+# ── 静态资源（前端）───────────────────────────────────────────
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# ── 数据库 ───────────────────────────────────────────────────
+# 先执行 npx wrangler d1 create <库名>，把返回的 database_name / database_id
+# 两行都换成你自己的。binding = "DB" 不要改，代码里就是 env.DB。
+[[d1_databases]]
+binding = "DB"
+database_name = "memo"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# ── 站点信息（改完 wrangler deploy 即生效，无需动前端代码）──────
+[vars]
+SITE_TITLE = "碎碎念"
+SITE_DESC  = "一个人的房间。想到什么写什么。"
+SITE_AUTHOR = ""
+SITE_LANG  = "zh-CN"
+# RSS 里的时间按这个时区显示（+8 即北京时间）
+SITE_TZ_OFFSET = "8"
+
+# 密码与会话密钥不要写在这里，用 wrangler secret put 设置：
+#   npx wrangler secret put ADMIN_PASSWORD
+#   npx wrangler secret put SESSION_SECRET

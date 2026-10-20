@@ -1,0 +1,17 @@
+{
+  "name": "memo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "极简单人微博客，跑在 Cloudflare Workers + D1 上",
+  "license": "MIT",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "db:init": "wrangler d1 execute memo --remote --file=./schema.sql",
+    "db:init:local": "wrangler d1 execute memo --local --file=./schema.sql"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

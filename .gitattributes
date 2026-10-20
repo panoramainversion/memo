@@ -1,0 +1,5 @@
+# 统一换行，避免 Windows / macOS 互相提交时整个文件都算改动
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
