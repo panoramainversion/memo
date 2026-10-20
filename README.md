@@ -4,6 +4,15 @@
 
 一个人，只发文字，安安静静地挂在网上。零服务器、零运维，免费额度足够用一辈子。
 
+<table>
+  <tr>
+    <td width="66%" valign="top"><img src="docs/screenshot-desktop.png" alt="桌面端，浅色主题"></td>
+    <td width="34%" valign="top"><img src="docs/screenshot-mobile.png" alt="手机端，深色主题"></td>
+  </tr>
+</table>
+
+左：桌面端，浅色，日期在左栏吸顶。右：手机端，深色，日期折到条目上方。
+
 ---
 
 ## 特性
@@ -119,6 +128,7 @@ memo/
 │   ├── app.js          # 渲染 + 交互（约 670 行）
 │   ├── manifest.webmanifest
 │   └── icon-*.png
+├── docs/               # README 用的两张截图
 └── *.bat               # Windows：deploy / healthcheck / backup
 ```
 
