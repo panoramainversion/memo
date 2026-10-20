@@ -203,7 +203,7 @@ D1 5 GB 存储、500 万行读/天、10 万行写/天。
 
 | 项 | 值 |
 | --- | --- |
-| Agent | WorkBuddy |
+| Agent | WorkBuddyAI |
 | 模型 | DeepSeek V4.1 Flash |
 
 代码经过实机验证：本地 `wrangler dev` 跑通全量接口测试，线上部署后逐项复验。
