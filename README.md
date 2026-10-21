@@ -23,6 +23,8 @@
 - 深浅色跟随系统，也能手动切，选择记在本地
 - 移动端单独调过字号行距；「添加到主屏幕」后独立窗口打开，像个 App
 - 搜索、标签筛选、单条永久链接、置顶、编辑、删除
+- 右上角管理入口：在线改站点标题、描述、作者、语言和 RSS 时区，导出 / 恢复全部数据
+- 手机上点开写作框时背景柔化，输入框跟着输入法平滑上移，页面不跳
 - RSS：`/feed.xml`
 - 补写历史条目：API 支持指定 `created_at`
 - 零构建：一个 CSS、一个 JS，没有框架，没有打包步骤
@@ -82,6 +84,8 @@ custom_domain = true
 | 按标签看 | 点正文里的 `#标签`，或访问 `/?tag=折腾` |
 | 搜索 | 页脚「搜索」 |
 | 单条链接 | 点那条的时间，链接进剪贴板 |
+| 改站点信息 | 登录后点右上角的滑杆图标 |
+| 备份 / 恢复 | 右上角管理 → 备份与恢复 |
 | 订阅 | `/feed.xml` |
 | 手机当 App | 浏览器 → 分享 → 添加到主屏幕 |
 
@@ -100,7 +104,7 @@ curl -X POST https://你的域名/api/notes \
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/api/site` | 站点标题、描述 |
+| GET | `/api/site` | 站点标题、描述、作者、语言、时区 |
 | GET | `/api/notes?limit&offset&tag&q` | 列表（公开） |
 | GET | `/api/notes/:id` | 单条（公开） |
 | POST | `/api/notes` | 发布（需登录） |
@@ -109,6 +113,10 @@ curl -X POST https://你的域名/api/notes \
 | POST | `/api/login` | 登录 |
 | POST | `/api/logout` | 退出 |
 | GET | `/api/me` | 是否已登录 |
+| GET | `/api/admin/site` | 读取站点配置（需登录） |
+| PUT | `/api/admin/site` | 保存站点配置（需登录） |
+| GET | `/api/admin/backup` | 导出全部条目 + 配置（需登录） |
+| POST | `/api/admin/restore` | 恢复备份（需登录） |
 | GET | `/feed.xml` | RSS 2.0，最近 30 条 |
 
 `created_at` 可以是毫秒时间戳，也可以是 ISO 字符串。
@@ -120,25 +128,28 @@ curl -X POST https://你的域名/api/notes \
 ```
 memo/
 ├── wrangler.toml       # Worker + D1 + 静态资源 + 站点变量
-├── schema.sql          # 一张表，五个字段
-├── src/index.js        # 后端：API + 会话 + RSS（约 300 行）
+├── schema.sql          # notes + settings 两张表
+├── src/index.js        # 后端：API + 会话 + 配置 + 备份 + RSS
 ├── public/
 │   ├── index.html
 │   ├── style.css       # 全部样式，含深浅色与响应式
-│   ├── app.js          # 渲染 + 交互（约 670 行）
+│   ├── app.js          # 渲染 + 交互 + 管理面板
 │   ├── manifest.webmanifest
 │   └── icon-*.png
 ├── docs/               # README 用的两张截图
 └── *.bat               # Windows：deploy / healthcheck / backup
 ```
 
-数据库只有一张表：`notes(id, content, created_at, updated_at, pinned)`。
+数据库有两张表：`notes(id, content, created_at, updated_at, pinned)` 和
+`settings(key, value, updated_at)`。后者保存后台改过的站点配置；没改过时用
+`wrangler.toml` 里的 `[vars]` 作为默认值。
 
 ---
 
 ## 自定义
 
-**站点名与描述** 改 `wrangler.toml`，重新 `wrangler deploy` 即可，不用碰前端代码：
+**站点名与描述** 登录后点右上角的管理入口，改完保存立即生效，不用重新部署。
+`wrangler.toml` 里的 `[vars]` 是初始默认值，也可以在第一次部署前改：
 
 ```toml
 [vars]

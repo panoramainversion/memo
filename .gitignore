@@ -3,7 +3,11 @@ node_modules/
 .dev.vars
 .DS_Store
 
-# 本机私有：管理员密码存档、备份文件
+# 本机私有：管理员密码存档、运维记录、备份文件
 .admin-password.txt
+部署与运维.md
 backup-*.json
 package-lock.json
+
+# 本机部署配置（含真实域名与数据库 ID），不提交
+wrangler.deploy.toml

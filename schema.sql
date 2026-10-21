@@ -10,3 +10,10 @@ CREATE TABLE IF NOT EXISTS notes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_notes_time ON notes (pinned DESC, created_at DESC);
+
+-- 后台可改的站点配置（键值对，目前只用到 key = 'site'）
+CREATE TABLE IF NOT EXISTS settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL,
+  updated_at INTEGER NOT NULL DEFAULT 0
+);

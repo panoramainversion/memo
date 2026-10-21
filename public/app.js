@@ -3,6 +3,7 @@
    ──────────────────────────────────────────────────────────── */
 
 const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
 const state = {
   site: { title: '碎碎念', desc: '' },
@@ -15,6 +16,11 @@ const state = {
   tag: '',
   q: '',
   animate: true,
+};
+
+const adminState = {
+  pending: false,
+  file: null,
 };
 
 /* ── 通用工具 ─────────────────────────────────────────────── */
@@ -47,6 +53,17 @@ function toast(msg, ms = 2000) {
     t.classList.remove('show');
     setTimeout(() => { t.hidden = true; }, 260);
   }, ms);
+}
+
+function applySite(site) {
+  if (!site) return;
+  state.site = { ...state.site, ...site };
+  const title = state.site.title || '碎碎念';
+  $('#siteTitle').textContent = title;
+  $('#siteDesc').textContent = state.site.desc || '';
+  document.title = title;
+  const meta = document.querySelector('meta[name="description"]');
+  if (meta && state.site.desc) meta.setAttribute('content', state.site.desc);
 }
 
 /* ── 行内排版：`code` **粗** *斜* #标签 链接 ───────────────── */
@@ -178,6 +195,66 @@ function toggleTheme() {
   document.documentElement.dataset.theme = next;
   localStorage.setItem('echlite-theme', next);
   syncThemeColor();
+}
+
+/* ── 移动端写作视图 ───────────────────────────────────────── */
+
+const composeState = {
+  active: false,
+  scrollY: 0,
+};
+
+function isMobileComposer() {
+  return window.matchMedia('(hover: none) and (pointer: coarse)').matches
+    || window.innerWidth <= 620;
+}
+
+function updateKeyboardOffset() {
+  if (!composeState.active) return;
+  const vv = window.visualViewport;
+  let offset = 0;
+  if (vv) {
+    offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+  }
+  document.documentElement.style.setProperty('--kb', `${Math.round(offset)}px`);
+}
+
+let kbFrame = 0;
+function scheduleKeyboardOffset() {
+  if (!composeState.active) return;
+  cancelAnimationFrame(kbFrame);
+  kbFrame = requestAnimationFrame(updateKeyboardOffset);
+}
+
+function enterCompose() {
+  if (composeState.active || !isMobileComposer()) return;
+  composeState.active = true;
+  composeState.scrollY = window.scrollY;
+  // 用固定 body 锁住画面，输入法弹出时背景不会自己往上跳
+  document.body.style.top = `-${composeState.scrollY}px`;
+  document.body.classList.add('composing');
+  $('#dock').classList.add('focused');
+  updateKeyboardOffset();
+}
+
+function exitCompose() {
+  if (!composeState.active) return;
+  const y = composeState.scrollY;
+  composeState.active = false;
+  document.body.classList.remove('composing');
+  document.body.style.top = '';
+  document.documentElement.style.setProperty('--kb', '0px');
+  $('#dock').classList.remove('focused');
+  // 恢复原来的滚动位置时不要走平滑动画，否则看起来会「跳一下」
+  const previous = document.documentElement.style.scrollBehavior;
+  document.documentElement.style.scrollBehavior = 'auto';
+  window.scrollTo(0, y);
+  document.documentElement.style.scrollBehavior = previous;
+}
+
+function focusComposer() {
+  const input = $('#composerInput');
+  try { input.focus({ preventScroll: true }); } catch { input.focus(); }
 }
 
 /* ── 渲染 ─────────────────────────────────────────────────── */
@@ -487,7 +564,12 @@ async function login() {
     state.animate = false;
     render();
     toast('欢迎回来');
-    setTimeout(() => $('#composerInput').focus(), 300);
+    if (adminState.pending) {
+      adminState.pending = false;
+      await openAdmin();
+    } else {
+      setTimeout(focusComposer, 300);
+    }
   } catch (e) {
     $('#pwErr').textContent = e.message;
     $('#pwInput').select();
@@ -495,6 +577,7 @@ async function login() {
 }
 
 async function logout() {
+  closeAdmin();
   await api('/api/logout', { method: 'POST' });
   state.authed = false;
   setAuthUI();
@@ -506,6 +589,225 @@ async function logout() {
 function setAuthUI() {
   $('#dock').hidden = !state.authed;
   $('#loginBtn').textContent = state.authed ? '退出' : '登录';
+}
+
+/* ── 管理面板 ─────────────────────────────────────────────── */
+
+function switchAdminTab(name) {
+  for (const tab of $$('.admin-tab')) {
+    const on = tab.dataset.pane === name;
+    tab.classList.toggle('is-active', on);
+    tab.setAttribute('aria-selected', String(on));
+  }
+  $('#adminPaneSite').hidden = name !== 'site';
+  $('#adminPaneBackup').hidden = name !== 'backup';
+}
+
+function fillAdminSite(site) {
+  $('#cfgTitle').value = site?.title || '';
+  $('#cfgDesc').value = site?.desc || '';
+  $('#cfgAuthor').value = site?.author || '';
+  $('#cfgLang').value = site?.lang || 'zh-CN';
+  $('#cfgTz').value = site?.tz ?? 8;
+}
+
+function adminStatus(el, msg, error = false) {
+  const node = $(el);
+  node.textContent = msg || '';
+  node.classList.toggle('is-error', !!error);
+}
+
+async function openAdmin() {
+  if (!state.authed) {
+    adminState.pending = true;
+    openModal();
+    return;
+  }
+  try {
+    const data = await api('/api/admin/site');
+    fillAdminSite(data.site);
+    adminStatus('#siteStatus', '');
+    adminStatus('#restoreStatus', '');
+    switchAdminTab('site');
+    $('#adminModal').hidden = false;
+  } catch (e) {
+    if (e.message === '未登录') {
+      state.authed = false;
+      setAuthUI();
+      adminState.pending = true;
+      openModal();
+    } else {
+      toast(e.message);
+    }
+  }
+}
+
+function closeAdmin() {
+  if ($('#adminModal').hidden) return;
+  $('#adminModal').hidden = true;
+  adminState.file = null;
+  $('#restoreFile').value = '';
+  $('#fileName').textContent = '还没有选择文件';
+  adminStatus('#restoreStatus', '');
+  $('#restoreBtn').disabled = true;
+}
+
+async function saveAdminSite() {
+  const btn = $('#saveSiteBtn');
+  const title = $('#cfgTitle').value.trim();
+  if (!title) {
+    adminStatus('#siteStatus', '站点标题不能为空', true);
+    $('#cfgTitle').focus();
+    return;
+  }
+  const tz = Number($('#cfgTz').value);
+  btn.disabled = true;
+  btn.textContent = '保存中';
+  adminStatus('#siteStatus', '正在保存…');
+  try {
+    const data = await api('/api/admin/site', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        desc: $('#cfgDesc').value,
+        author: $('#cfgAuthor').value,
+        lang: $('#cfgLang').value,
+        tz: Number.isFinite(tz) ? tz : state.site.tz,
+      }),
+    });
+    applySite(data.site);
+    fillAdminSite(data.site);
+    adminStatus('#siteStatus', '已保存');
+    $('#saveSiteBtn').textContent = '已保存';
+    setTimeout(() => { $('#saveSiteBtn').textContent = '保存配置'; }, 1200);
+    toast('站点配置已更新');
+  } catch (e) {
+    adminStatus('#siteStatus', e.message, true);
+  } finally {
+    btn.disabled = false;
+    if (btn.textContent === '保存中') btn.textContent = '保存配置';
+  }
+}
+
+async function exportBackup() {
+  const btn = $('#exportBtn');
+  btn.disabled = true;
+  btn.textContent = '准备中…';
+  try {
+    const res = await fetch('/api/admin/backup', { credentials: 'same-origin' });
+    if (!res.ok) {
+      let msg = '导出失败';
+      try { msg = (await res.json()).error || msg; } catch { /* ignore */ }
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const disposition = res.headers.get('content-disposition') || '';
+    const match = disposition.match(/filename="([^"]+)"/);
+    const name = match ? match[1] : `memo-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('备份已下载');
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '下载备份';
+  }
+}
+
+function parseBackup(raw) {
+  let notes = [];
+  let site = null;
+  if (Array.isArray(raw)) {
+    notes = raw.some((row) => Array.isArray(row?.results))
+      ? raw.flatMap((row) => (Array.isArray(row.results) ? row.results : []))
+      : raw;
+  } else if (raw && typeof raw === 'object') {
+    site = raw.site || null;
+    if (Array.isArray(raw.notes)) notes = raw.notes;
+    else if (Array.isArray(raw.results)) notes = raw.results;
+  }
+  notes = notes.filter((n) => n && typeof n === 'object' && String(n.content || '').trim());
+  return { notes, site };
+}
+
+function backupRange(notes) {
+  const times = notes
+    .map((n) => (typeof n.created_at === 'number' ? n.created_at : Date.parse(n.created_at)))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  if (!times.length) return '';
+  const fmt = (t) => new Date(t).toLocaleDateString('zh-CN');
+  return `${fmt(Math.min(...times))} – ${fmt(Math.max(...times))}`;
+}
+
+async function readBackupFile(file) {
+  adminState.file = null;
+  $('#restoreBtn').disabled = true;
+  adminStatus('#restoreStatus', '');
+  if (!file) {
+    $('#fileName').textContent = '还没有选择文件';
+    return;
+  }
+  if (file.size > 25 * 1024 * 1024) {
+    $('#fileName').textContent = file.name;
+    adminStatus('#restoreStatus', '文件超过 25 MB，无法导入', true);
+    return;
+  }
+  try {
+    const parsed = parseBackup(JSON.parse(await file.text()));
+    if (!parsed.notes.length && !parsed.site) throw new Error('没有找到可恢复的数据');
+    adminState.file = parsed;
+    const range = backupRange(parsed.notes);
+    $('#fileName').textContent = `${file.name} · ${parsed.notes.length} 条${range ? ` · ${range}` : ''}`;
+    adminStatus('#restoreStatus', '文件读取成功，可以开始恢复');
+    $('#restoreBtn').disabled = false;
+  } catch (e) {
+    $('#fileName').textContent = file.name;
+    adminStatus('#restoreStatus', e.message || '文件格式不对', true);
+  }
+}
+
+async function restoreBackup() {
+  const parsed = adminState.file;
+  if (!parsed) return toast('先选一个备份文件');
+  const replace = $('#replaceMode').checked;
+  if (replace && !confirm('覆盖恢复会先删除现在的全部条目，确定继续吗？')) return;
+
+  const btn = $('#restoreBtn');
+  btn.disabled = true;
+  btn.textContent = '恢复中';
+  adminStatus('#restoreStatus', '正在写入，请稍候…');
+  try {
+    const data = await api('/api/admin/restore', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        notes: parsed.notes,
+        site: parsed.site,
+        restoreSite: $('#restoreSite').checked,
+        mode: replace ? 'replace' : 'merge',
+      }),
+    });
+    const msg = replace
+      ? `已恢复 ${data.inserted} 条，原有 ${data.deleted} 条被替换`
+      : `新增 ${data.inserted} 条，跳过 ${data.skipped} 条重复或无效`;
+    adminStatus('#restoreStatus', msg);
+    toast('恢复完成');
+    applySite(await api('/api/site'));
+    await loadMore(true);
+  } catch (e) {
+    adminStatus('#restoreStatus', e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '开始恢复';
+  }
 }
 
 async function publish() {
@@ -533,6 +835,7 @@ async function publish() {
     input.value = '';
     resizeInput();
     input.blur();
+    if (composeState.active) exitCompose();
     $('#dock').classList.remove('focused');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     toast('发出去了');
@@ -559,30 +862,63 @@ function resizeInput() {
 
 function bindUI() {
   $('#themeBtn').addEventListener('click', toggleTheme);
+  $('#adminBtn').addEventListener('click', openAdmin);
 
   $('#loginBtn').addEventListener('click', () => {
     if (state.authed) logout();
-    else openModal();
+    else { adminState.pending = false; openModal(); }
   });
 
   $('#modal').addEventListener('click', (e) => {
-    if (e.target.closest('[data-close]')) closeModal();
+    if (e.target.closest('[data-close]')) {
+      adminState.pending = false;
+      closeModal();
+    }
   });
 
   $('#pwSubmit').addEventListener('click', login);
   $('#pwInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') login();
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') { adminState.pending = false; closeModal(); }
   });
+
+  // 管理面板
+  $('#adminModal').addEventListener('click', (e) => {
+    if (e.target.closest('[data-admin-close]')) closeAdmin();
+  });
+  for (const tab of $$('.admin-tab')) {
+    tab.addEventListener('click', () => switchAdminTab(tab.dataset.pane));
+  }
+  $('#saveSiteBtn').addEventListener('click', saveAdminSite);
+  $('#exportBtn').addEventListener('click', exportBackup);
+  $('#pickFileBtn').addEventListener('click', () => $('#restoreFile').click());
+  $('#restoreFile').addEventListener('change', () => {
+    readBackupFile($('#restoreFile').files?.[0]);
+  });
+  $('#restoreBtn').addEventListener('click', restoreBackup);
 
   const input = $('#composerInput');
   input.addEventListener('input', resizeInput);
-  input.addEventListener('focus', () => $('#dock').classList.add('focused'));
+  input.addEventListener('focus', () => {
+    $('#dock').classList.add('focused');
+    enterCompose();
+  });
+  input.addEventListener('blur', () => {
+    if (composeState.active) exitCompose();
+    else $('#dock').classList.remove('focused');
+  });
   input.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); publish(); }
-    if (e.key === 'Escape') { input.blur(); $('#dock').classList.remove('focused'); }
+    if (e.key === 'Escape') input.blur();
   });
+  $('#publishBtn').addEventListener('pointerdown', (e) => e.preventDefault());
   $('#publishBtn').addEventListener('click', publish);
+  $('#composeVeil').addEventListener('click', () => input.blur());
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', scheduleKeyboardOffset);
+    window.visualViewport.addEventListener('scroll', scheduleKeyboardOffset);
+  }
 
   $('#filterClear').addEventListener('click', () => {
     location.href = location.pathname;
@@ -609,11 +945,15 @@ function bindUI() {
 
   // 快捷键：n 写一条
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('#adminModal').hidden) {
+      closeAdmin();
+      return;
+    }
     if (e.target.matches('input, textarea, [contenteditable]')) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === 'n' && state.authed) {
       e.preventDefault();
-      $('#composerInput').focus();
+      focusComposer();
     }
   });
 
@@ -651,18 +991,11 @@ async function boot() {
 
   try {
     const [site, me] = await Promise.all([api('/api/site'), api('/api/me')]);
-    state.site = site;
     state.authed = !!me.authed;
-
-    $('#siteTitle').textContent = site.title || '碎碎念';
-    $('#siteDesc').textContent = site.desc || '';
-    document.title = site.title || '碎碎念';
-    const metaDesc = document.querySelector('meta[name="description"]');
-    if (metaDesc && site.desc) metaDesc.setAttribute('content', site.desc);
-
+    applySite(site);
     setAuthUI();
   } catch {
-    $('#siteTitle').textContent = '碎碎念';
+    applySite({ title: '碎碎念', desc: '' });
     $('#dock').hidden = true;
   }
 

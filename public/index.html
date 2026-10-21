@@ -27,12 +27,19 @@
         </h1>
         <p class="site-desc" id="siteDesc"></p>
       </div>
-      <button class="icon-btn" id="themeBtn" aria-label="切换主题" title="切换主题">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
-          <circle cx="12" cy="12" r="4.2" />
-          <path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6" />
-        </svg>
-      </button>
+      <div class="site-actions">
+        <button class="icon-btn" id="adminBtn" aria-label="管理" title="管理站点与数据">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4.8v4.4M10 14.8v4.4" />
+          </svg>
+        </button>
+        <button class="icon-btn" id="themeBtn" aria-label="切换主题" title="切换主题">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+            <circle cx="12" cy="12" r="4.2" />
+            <path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6" />
+          </svg>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -69,6 +76,9 @@
   </footer>
 </main>
 
+<!-- 写作时的背景柔化层 -->
+<div class="compose-veil" id="composeVeil" aria-hidden="true"></div>
+
 <!-- 发布条 -->
 <div class="dock" id="dock" hidden>
   <div class="dock-inner">
@@ -91,6 +101,79 @@
     <div class="modal-actions">
       <button class="btn-ghost" data-close>取消</button>
       <button class="btn-primary" id="pwSubmit">进入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 管理弹层 -->
+<div class="modal admin-modal" id="adminModal" hidden>
+  <div class="modal-backdrop" data-admin-close></div>
+  <div class="modal-card admin-card" role="dialog" aria-modal="true" aria-label="管理">
+    <header class="admin-head">
+      <div>
+        <h2 class="modal-title">管理</h2>
+        <p class="modal-sub">站点配置与数据备份</p>
+      </div>
+      <button class="admin-close" type="button" data-admin-close aria-label="关闭">×</button>
+    </header>
+
+    <div class="admin-tabs" role="tablist" aria-label="管理分类">
+      <button class="admin-tab is-active" type="button" role="tab" aria-selected="true" data-pane="site">站点配置</button>
+      <button class="admin-tab" type="button" role="tab" aria-selected="false" data-pane="backup">备份与恢复</button>
+    </div>
+
+    <div class="admin-panes">
+      <section class="admin-pane" id="adminPaneSite" role="tabpanel">
+        <label class="field">
+          <span>站点标题</span>
+          <input class="input" id="cfgTitle" maxlength="80" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>一句话描述</span>
+          <textarea class="input" id="cfgDesc" rows="2" maxlength="300"></textarea>
+        </label>
+        <div class="field-row">
+          <label class="field">
+            <span>作者</span>
+            <input class="input" id="cfgAuthor" maxlength="80" autocomplete="off" />
+          </label>
+          <label class="field field-narrow">
+            <span>时区</span>
+            <input class="input" id="cfgTz" type="number" min="-12" max="14" step="0.25" inputmode="decimal" />
+          </label>
+        </div>
+        <label class="field">
+          <span>语言</span>
+          <input class="input" id="cfgLang" maxlength="24" autocomplete="off" />
+        </label>
+        <p class="admin-hint">保存后立即生效；RSS 的时间也会按这里的时区显示。</p>
+        <div class="admin-actions">
+          <span class="admin-status" id="siteStatus"></span>
+          <button class="btn-primary" type="button" id="saveSiteBtn">保存配置</button>
+        </div>
+      </section>
+
+      <section class="admin-pane" id="adminPaneBackup" role="tabpanel" hidden>
+        <div class="backup-block">
+          <h3 class="backup-title">导出备份</h3>
+          <p class="backup-text">把全部条目和站点配置打包成一个 JSON 文件。建议定期下载，放在网盘或本地留一份。</p>
+          <button class="btn-ghost" type="button" id="exportBtn">下载备份</button>
+        </div>
+
+        <div class="backup-block">
+          <h3 class="backup-title">恢复备份</h3>
+          <p class="backup-text">支持本项目的备份文件，也兼容 <code>wrangler d1 --json</code> 导出的结果。</p>
+          <input type="file" id="restoreFile" accept=".json,application/json" hidden />
+          <button class="btn-ghost" type="button" id="pickFileBtn">选择文件</button>
+          <p class="file-name" id="fileName">还没有选择文件</p>
+          <label class="check"><input type="checkbox" id="restoreSite" checked /> 同时恢复站点配置</label>
+          <label class="check"><input type="checkbox" id="replaceMode" /> 覆盖现有数据（会先清空全部条目）</label>
+          <div class="admin-actions">
+            <span class="admin-status" id="restoreStatus"></span>
+            <button class="btn-primary" type="button" id="restoreBtn" disabled>开始恢复</button>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </div>

@@ -102,7 +102,7 @@ wrangler d1 execute memo --remote --file=./schema.sql
 wrangler d1 execute memo --remote --command "SELECT name FROM sqlite_master WHERE type='table'"
 ```
 
-应该看到一行 `notes`。
+应该看到 `notes` 和 `settings` 两行。
 
 > **`--remote` 绝对不能省。** 省了表会建在你电脑的本地模拟库里，
 > 线上还是空的，打开网站只会显示「没能加载出来」。
@@ -223,6 +223,8 @@ custom_domain = true
 | 按标签看 | 点正文里的 `#标签`，地址变成 `?tag=折腾` |
 | 搜索 | 页脚「搜索」，回车 |
 | 复制某条链接 | 点那条的时间 |
+| 改站点信息 | 登录后点右上角滑杆图标，改标题 / 描述 / 作者 / 语言 / 时区 |
+| 备份 / 恢复 | 右上角滑杆图标 → 备份与恢复 |
 | 换深色 | 右上角太阳/月亮，选择会记住 |
 | 手机当 App | 浏览器 → 分享 → 添加到主屏幕 |
 | 让别人订阅 | 把 `/feed.xml` 给对方 |
@@ -257,7 +259,7 @@ cookie 从浏览器 F12 → Application → Cookies → `ec_session` 复制。
 | 页面显示「没能加载出来」 | 数据库没建表，或表建在了本地 | 重跑第 5 步，务必带 `--remote` |
 | 登录点了没反应 | 浏览器拦了 Cookie | 允许本站 Cookie；必须是 https 访问 |
 | 忘了密码 | — | 重跑第 6 步的 `ADMIN_PASSWORD` |
-| 改了标题没变化 | 没重新部署 | `wrangler deploy` |
+| 改了标题没变化 | 没保存，或页面还没刷新 | 在管理面板点保存，刷新页面 |
 | `database_id invalid` | ID 没换或复制错了 | 回第 4 步重来，注意别带多余引号 |
 | 域名打不开 | 证书还在签 | 等 1–2 分钟；Dashboard → Workers → memo → Settings → Domains |
 
@@ -273,7 +275,14 @@ wrangler tail
 
 ## 12. 备份与恢复
 
-D1 就是一个 SQLite，一条命令导出全部：
+最省事的办法：登录后点右上角滑杆图标 → **备份与恢复** → **下载备份**。
+导出的 JSON 同时包含全部条目和站点配置，建议每月一次，丢进网盘或本地。
+
+**恢复**：同一页选文件，默认「合并」会跳过内容与时间都相同的条目；
+勾选「覆盖现有数据」会先清空全部条目再导入，适合整站迁移。
+恢复前建议先下载一份当前备份。
+
+也可以在命令行导出（只含条目，不含站点配置）：
 
 ```bash
 wrangler d1 execute memo --remote \
@@ -282,9 +291,7 @@ wrangler d1 execute memo --remote \
 ```
 
 Windows 没有 `date +%F`，直接写死文件名：`> backup.json`。
-
-**恢复**：把 JSON 里每条的 `content` / `created_at` 按第 10 步的格式 POST 回 `/api/notes`。
-建议每月跑一次，或者把导出的文件丢进 Git 仓库。
+管理页面的恢复功能也兼容这种 `wrangler d1 --json` 格式。
 
 ---
 
@@ -344,4 +351,4 @@ wrangler dev                       # http://127.0.0.1:8787
 
 ---
 
-**本项目全部内容由 AI 生成** —— Agent：WorkBuddy，模型：DeepSeek V4.1 Flash。
+**本项目全部内容由 AI 生成** —— Agent：WorkBuddyAI，模型：DeepSeek V4.1 Flash。
