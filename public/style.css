@@ -552,9 +552,14 @@ body.composing {
   padding: 18px 24px calc(18px + env(safe-area-inset-bottom));
   pointer-events: none;
   background: linear-gradient(to top, var(--bg) 30%, transparent);
-  transform: translate3d(0, calc(-1 * var(--kb, 0px)), 0);
+  transform: translate3d(0, calc(-1 * var(--compose-lift, 0px)), 0);
   transition: transform 0.36s var(--ease);
   will-change: transform;
+}
+
+/* 居中写作时不再需要底部渐隐，避免面板下方出现一条色带 */
+body.composing .dock {
+  background: transparent;
 }
 
 .dock-inner {

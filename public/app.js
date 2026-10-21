@@ -202,6 +202,8 @@ function toggleTheme() {
 const composeState = {
   active: false,
   scrollY: 0,
+  lift: 0,
+  frame: 0,
 };
 
 function isMobileComposer() {
@@ -209,41 +211,62 @@ function isMobileComposer() {
     || window.innerWidth <= 620;
 }
 
-function updateKeyboardOffset() {
+// 输入法弹出后，可视区域会变矮。把发布面板的中心对到可视区域的正中，
+// 而不是贴着键盘上沿；只读 visualViewport.height，避免 offsetTop 抖动时来回弹。
+function updateComposeLift() {
+  composeState.frame = 0;
   if (!composeState.active) return;
+
+  const dock = $('#dock');
+  const inner = dock.querySelector('.dock-inner');
+  if (!inner) return;
+
   const vv = window.visualViewport;
-  let offset = 0;
-  if (vv) {
-    offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-  }
-  document.documentElement.style.setProperty('--kb', `${Math.round(offset)}px`);
+  const targetCenter = (vv ? vv.height : window.innerHeight) / 2;
+
+  // dock 固定在视口底部，inner 的底边到 dock 底边的距离不受 transform 影响。
+  const dockRect = dock.getBoundingClientRect();
+  const innerRect = inner.getBoundingClientRect();
+  const gapBelow = dockRect.bottom - innerRect.bottom;
+  const baseCenter = window.innerHeight - gapBelow - innerRect.height / 2;
+
+  const lift = Math.max(0, Math.round(baseCenter - targetCenter));
+  if (Math.abs(lift - composeState.lift) < 1) return;
+
+  composeState.lift = lift;
+  document.documentElement.style.setProperty('--compose-lift', `${lift}px`);
 }
 
-let kbFrame = 0;
-function scheduleKeyboardOffset() {
-  if (!composeState.active) return;
-  cancelAnimationFrame(kbFrame);
-  kbFrame = requestAnimationFrame(updateKeyboardOffset);
+function scheduleComposeLift() {
+  if (!composeState.active || composeState.frame) return;
+  composeState.frame = requestAnimationFrame(updateComposeLift);
 }
 
 function enterCompose() {
   if (composeState.active || !isMobileComposer()) return;
   composeState.active = true;
   composeState.scrollY = window.scrollY;
+  composeState.lift = 0;
+  document.documentElement.style.setProperty('--compose-lift', '0px');
   // 用固定 body 锁住画面，输入法弹出时背景不会自己往上跳
   document.body.style.top = `-${composeState.scrollY}px`;
   document.body.classList.add('composing');
   $('#dock').classList.add('focused');
-  updateKeyboardOffset();
+  scheduleComposeLift();
 }
 
 function exitCompose() {
   if (!composeState.active) return;
   const y = composeState.scrollY;
   composeState.active = false;
+  composeState.lift = 0;
+  if (composeState.frame) {
+    cancelAnimationFrame(composeState.frame);
+    composeState.frame = 0;
+  }
   document.body.classList.remove('composing');
   document.body.style.top = '';
-  document.documentElement.style.setProperty('--kb', '0px');
+  document.documentElement.style.setProperty('--compose-lift', '0px');
   $('#dock').classList.remove('focused');
   // 恢复原来的滚动位置时不要走平滑动画，否则看起来会「跳一下」
   const previous = document.documentElement.style.scrollBehavior;
@@ -916,8 +939,13 @@ function bindUI() {
   $('#composeVeil').addEventListener('click', () => input.blur());
 
   if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', scheduleKeyboardOffset);
-    window.visualViewport.addEventListener('scroll', scheduleKeyboardOffset);
+    window.visualViewport.addEventListener('resize', scheduleComposeLift);
+    window.visualViewport.addEventListener('scroll', scheduleComposeLift);
+  }
+  window.addEventListener('resize', scheduleComposeLift);
+  // 操作栏展开、输入框长高都会改变面板高度，跟着重新居中
+  if (window.ResizeObserver) {
+    new ResizeObserver(scheduleComposeLift).observe($('#dock').querySelector('.dock-inner'));
   }
 
   $('#filterClear').addEventListener('click', () => {
