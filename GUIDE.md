@@ -102,7 +102,7 @@ wrangler d1 execute memo --remote --file=./schema.sql
 wrangler d1 execute memo --remote --command "SELECT name FROM sqlite_master WHERE type='table'"
 ```
 
-应该看到 `notes` 和 `settings` 两行。
+应该能看到 `notes` 和 `settings`；如果还多一行 `sqlite_sequence`，那是 SQLite 自增表的内部记录，正常。
 
 > **`--remote` 绝对不能省。** 省了表会建在你电脑的本地模拟库里，
 > 线上还是空的，打开网站只会显示「没能加载出来」。
@@ -280,6 +280,7 @@ wrangler tail
 
 **恢复**：同一页选文件，默认「合并」会跳过内容与时间都相同的条目；
 勾选「覆盖现有数据」会先清空全部条目再导入，适合整站迁移。
+默认会同时恢复站点配置，只想恢复条目就取消「同时恢复站点配置」。
 恢复前建议先下载一份当前备份。
 
 也可以在命令行导出（只含条目，不含站点配置）：
